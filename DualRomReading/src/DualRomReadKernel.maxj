@@ -18,11 +18,12 @@ class DualRomReadKernel extends Kernel {
     private static DFEType valueT = dfeFloat(8, 24);
     private static DFEType indexT = dfeUInt(32);
     private static DFEType addrT  = dfeUInt(MathUtils.bitsToAddress(depth));
-    private static DFEVectorType<DFEVar> dualIndexT = new DFEVectorType<DFEVar>(indexT, 2);
-    private static DFEVectorType<DFEVar> dualValueT = new DFEVectorType<DFEVar>(valueT, 2);
 
     DualRomReadKernel(KernelParameters parameters, int numPorts) {
         super(parameters);
+        
+        DFEVectorType<DFEVar> dualIndexT = new DFEVectorType<DFEVar>(indexT, 2);
+        DFEVectorType<DFEVar> dualValueT = new DFEVectorType<DFEVar>(valueT, 2);
 
         DFEVector<DFEVar> dualIndex = io.input("index", dualIndexT);
         DFEVector<DFEVar> dualValue = dualValueT.newInstance(this);
@@ -30,8 +31,9 @@ class DualRomReadKernel extends Kernel {
             // should have less space, but slower
             Memory<DFEVar> ROM  = mem.alloc(valueT, depth);
             ROM.mapToCPU("ROM1");
-            dualValue[0]        <== ROM.read(dualIndex[0].cast(addrT));
-            dualValue[1]        <== ROM.read(dualIndex[1].cast(addrT));
+            for (int i = 0; i < numPorts; i++) 
+                dualValue[i] <== ROM.read(dualIndex[i].cast(addrT));
+            
         } else {
             // should have larger space, but faster
             Memory<DFEVar> ROM1 = mem.alloc(valueT, depth);

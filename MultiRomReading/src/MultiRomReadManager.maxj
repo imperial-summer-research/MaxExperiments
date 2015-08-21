@@ -1,0 +1,60 @@
+
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+class MultiRomReadManager extends CustomManager {
+
+    private static final String s_kernelName = "MultiRomReadKernel";
+
+    MultiRomReadManager(MultiRomReadEngineParameters params) {
+        super(params);
+    
+        KernelBlock k = addKernel(
+            new MultiRomReadKernel(makeKernelParameters(s_kernelName), params.getNumPorts(), params.getNumPipes()));
+
+        // config.setDefaultStreamClockFrequency(params.getStreamFrequency());
+        // --- DFELinks --- 
+        DFELink indexStream = addStreamFromCPU("index");
+        DFELink valueStream = addStreamToCPU("value");
+
+        //// --- Connect DFELinks to kernel block ---
+        k.getInput("index") <== indexStream;
+        valueStream         <== k.getOutput("value");
+
+        createSLiCinterface(modeDefault(params.getNumPorts(), params.getNumPipes()));
+
+        //configBuild(params);
+    }
+
+    private EngineInterface modeDefault(int numPorts, int numPipes) {
+        EngineInterface ei = new EngineInterface();
+
+        InterfaceParam length = ei.addParam("length", CPUTypes.INT);
+        InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
+
+        ei.setTicks(s_kernelName, length/numPipes);
+        ei.setStream("index", CPUTypes.UINT32,  lengthInBytes);
+        ei.setStream("value", CPUTypes.FLOAT,   lengthInBytes);
+
+        return ei;
+    }
+
+    public static void main(String[] args) {
+        MultiRomReadEngineParameters params = new MultiRomReadEngineParameters(args);
+        MultiRomReadManager manager = new MultiRomReadManager(params);
+        
+        manager.addMaxFileConstant("numPorts", params.getNumPorts());
+        manager.addMaxFileConstant("numPipes", params.getNumPipes());
+        manager.build();
+    }
+}
+

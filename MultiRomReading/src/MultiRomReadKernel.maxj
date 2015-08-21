@@ -1,0 +1,45 @@
+
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelConfiguration;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+class MultiRomReadKernel extends Kernel {
+
+    private static int depth = 8192 * 4;
+    private static DFEType valueT = dfeFloat(8, 24);
+    private static DFEType indexT = dfeUInt(32);
+    private static DFEType addrT  = dfeUInt(MathUtils.bitsToAddress(depth));
+
+
+    // This kernel will deal with multiple reading of the same ROM at the same time.
+    // We might need one ROM to serve different number of pipes, which means port.
+    MultiRomReadKernel(KernelParameters parameters, int numPorts, int numPipes) {
+        super(parameters);
+        
+        DFEVectorType<DFEVar> multiIndexT = new DFEVectorType<DFEVar>(indexT, numPipes);
+        DFEVectorType<DFEVar> multiValueT = new DFEVectorType<DFEVar>(valueT, numPipes);
+
+        DFEVector<DFEVar> multiIndex = io.input("index", multiIndexT);
+        DFEVector<DFEVar> multiValue = multiValueT.newInstance(this);
+        
+        // numRoms * numPorts = numPipes
+        for (int i = 0; i < numPipes / numPorts; i++) {
+            // for each ROM
+            Memory<DFEVar> ROM = mem.alloc(valueT, depth);
+            ROM.mapToCPU(String.format("ROM%04d", i));
+            for (int j = 0; j < numPorts; j++) 
+                multiValue[i*numPorts+j] <== ROM.read(multiIndex[i*numPorts+j].cast(addrT));
+        }
+        io.output("value", multiValue, multiValueT);
+    }
+}
+

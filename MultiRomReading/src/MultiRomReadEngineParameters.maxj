@@ -1,0 +1,42 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class MultiRomReadEngineParameters extends EngineParameters {
+
+	public MultiRomReadEngineParameters(String [] args) {
+		super(args);
+	}
+
+	// declare param names
+	private static final String s_numPipes = "numPipes";
+	private static final String s_numPorts = "numPorts";
+	// private static final String s_numMaxColumns 	= "numMaxColumns";
+	
+
+	// declare params
+	@Override
+	protected void declarations() {
+	//	declareParam(s_numPipes,		DataType.INT, 	  8);
+	//	declareParam(s_numMaxColumns,	DataType.INT,  8192);
+		declareParam(s_numPorts, DataType.INT, 2);
+		declareParam(s_numPipes, DataType.INT, 2);
+	}
+
+	//public int getTreeWidth()		{ return getParam(s_treeWidth); }
+	//public int getStreamFrequency()	{ return getParam(s_streamFrequency); }
+	//public int getNumPipes()		{ return getParam(s_numPipes); }
+	//public int getNumMaxColumns()	{ return getParam(s_numMaxColumns); }
+	public int getNumPorts() { return getParam(s_numPorts); }
+	public int getNumPipes() { return getParam(s_numPipes); }	
+
+	@Override
+	public String getBuildName() {
+		return 
+			String.format("%s_%s_%s_%s%03d_%s%03d", 
+				getMaxFileName(),
+				getDFEModel(),
+				getTarget(),
+				"NumPorts", getNumPorts(),
+				"NumPipes", getNumPipes());
+	}
+}
