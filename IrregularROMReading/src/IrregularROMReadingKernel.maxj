@@ -1,0 +1,34 @@
+
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelConfiguration;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+class IrregularROMReadingKernel extends Kernel {
+
+    private static int depth = 8192 * 4;
+    private static DFEType valueType = dfeFloat(8, 24);
+    private static DFEType indexType = dfeUInt(32);
+    private static DFEType addrType  = dfeUInt(MathUtils.bitsToAddress(depth));
+
+    IrregularROMReadingKernel(KernelParameters parameters) {
+        super(parameters);
+
+        Memory<DFEVar> ROM = mem.alloc(valueType, depth);
+        ROM.mapToCPU("ROM");
+        DFEVar index = io.input("index", indexType);
+        DFEVar v1 = ROM.read(index.cast(addrType));
+        DFEVar v2 = ROM.read(index.cast(addrType));
+        DFEVar v3 = ROM.read(index.cast(addrType));
+        io.output("value", v1+v2+v3, valueType);
+    }
+}
+

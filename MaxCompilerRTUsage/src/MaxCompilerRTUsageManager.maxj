@@ -1,0 +1,76 @@
+
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+class MaxCompilerRTUsageManager extends CustomManager {
+
+    // this one is fixed due to the operator's feature.
+    private static final int X = 8192;
+    private static final String s_kernelName = "MaxCompilerRTUsageKernel";
+
+    MaxCompilerRTUsageManager(MaxCompilerRTUsageEngineParameters params) {
+        super(params);
+    
+        KernelBlock k = addKernel(
+            new MaxCompilerRTUsageKernel(makeKernelParameters(s_kernelName), X));
+
+        // config.setDefaultStreamClockFrequency(params.getStreamFrequency());
+        // --- DFELinks --- 
+        //DFELink valsStream          = addStreamFromCPU("vals");
+        //DFELink colsStream          = addStreamFromCPU("cols");
+        //DFELink startOfBlockStream  = addStreamFromCPU("startOfBlock");
+        //DFELink outputStream        = addStreamToCPU("output");
+        DFELink inputStream         = addStreamFromCPU("input");
+        DFELink outputStream        = addStreamToCPU("output");
+
+        //// --- Connect DFELinks to kernel block ---
+        //k.getInput("vals")          <== valsStream;
+        //k.getInput("cols")          <== colsStream;
+        //k.getInput("startOfBlock")  <== startOfBlockStream;
+        //outputStream                <== k.getOutput("output");
+        k.getInput("input")         <== inputStream;
+        outputStream                <== k.getOutput("output");
+
+        createSLiCinterface(modeDefault());
+
+        //configBuild(params);
+    }
+
+    private EngineInterface modeDefault() {
+        EngineInterface ei = new EngineInterface();
+
+        InterfaceParam length = ei.addParam("length", CPUTypes.INT);
+        InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
+        InterfaceParam loopLength = ei.getAutoLoopOffset(s_kernelName, "loopLength");
+        ei.ignoreAutoLoopOffset(s_kernelName, "loopLength");
+
+        ei.setTicks(s_kernelName, length * loopLength);
+        ei.setStream("input",   CPUTypes.FLOAT,  lengthInBytes);
+        ei.setStream("output",  CPUTypes.FLOAT,  lengthInBytes);
+
+        return ei;
+    }
+
+    private void configBuild(MaxCompilerRTUsageEngineParameters params) {
+        BuildConfig buildConfig = getBuildConfig();
+        buildConfig.setBuildEffort(params.getNumPipes() < 100 ? Effort.MEDIUM : Effort.HIGH);
+        buildConfig.setOptimizationGoal(OptimizationTechnique.AREA);
+    }
+
+    public static void main(String[] args) {
+        MaxCompilerRTUsageEngineParameters params = new MaxCompilerRTUsageEngineParameters(args);
+        MaxCompilerRTUsageManager manager = new MaxCompilerRTUsageManager(params);
+
+        manager.build();
+    }
+}
+

@@ -1,0 +1,35 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class IrregularROMReadingEngineParameters extends EngineParameters {
+
+	public IrregularROMReadingEngineParameters(String [] args) {
+		super(args);
+	}
+
+	// declare param names
+	// private static final String s_numPipes 			= "numPipes";
+	// private static final String s_numMaxColumns 	= "numMaxColumns";
+	
+	// declare params
+	//@Override
+	//protected void declarations() {
+	//	declareParam(s_numPipes,		DataType.INT, 	  8);
+	//	declareParam(s_numMaxColumns,	DataType.INT,  8192);
+	//}
+
+	//public int getTreeWidth()		{ return getParam(s_treeWidth); }
+	//public int getStreamFrequency()	{ return getParam(s_streamFrequency); }
+	//public int getNumPipes()		{ return getParam(s_numPipes); }
+	//public int getNumMaxColumns()	{ return getParam(s_numMaxColumns); }
+
+	//@Override
+	//public String getBuildName() {
+	//	return 
+	//		String.format("%s_%s_%s%03d_%s%d", 
+	//			getMaxFileName(),
+	//			getTarget(),
+	//			"treeWidth", getTreeWidth(),
+	//			"streamFrequency", getStreamFrequency());
+	//}
+}

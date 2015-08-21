@@ -1,0 +1,13 @@
+
+# naive
+
+*.o
+*.so
+
+*DFE_SIM*/
+*DFE*/
+*.class
+*dfe
+*sim
+
+.DS_Store

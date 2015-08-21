@@ -1,0 +1,59 @@
+
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+class DualRomReadManager extends CustomManager {
+
+    private static final String s_kernelName = "DualRomReadKernel";
+
+    DualRomReadManager(DualRomReadEngineParameters params) {
+        super(params);
+    
+        KernelBlock k = addKernel(
+            new DualRomReadKernel(makeKernelParameters(s_kernelName), params.getNumPorts()));
+
+        // config.setDefaultStreamClockFrequency(params.getStreamFrequency());
+        // --- DFELinks --- 
+        DFELink indexStream = addStreamFromCPU("index");
+        DFELink valueStream = addStreamToCPU("value");
+
+        //// --- Connect DFELinks to kernel block ---
+        k.getInput("index") <== indexStream;
+        valueStream         <== k.getOutput("value");
+
+        createSLiCinterface(modeDefault(params.getNumPorts()));
+
+        //configBuild(params);
+    }
+
+    private EngineInterface modeDefault(int numPorts) {
+        EngineInterface ei = new EngineInterface();
+
+        InterfaceParam length = ei.addParam("length", CPUTypes.INT);
+        InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
+
+        ei.setTicks(s_kernelName, length/2);
+        ei.setStream("index", CPUTypes.UINT32,  lengthInBytes);
+        ei.setStream("value", CPUTypes.FLOAT,   lengthInBytes);
+
+        return ei;
+    }
+
+    public static void main(String[] args) {
+        DualRomReadEngineParameters params = new DualRomReadEngineParameters(args);
+        DualRomReadManager manager = new DualRomReadManager(params);
+        
+        manager.addMaxFileConstant("numPorts", params.getNumPorts());
+        manager.build();
+    }
+}
+

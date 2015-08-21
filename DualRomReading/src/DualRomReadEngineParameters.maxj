@@ -1,0 +1,37 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class DualRomReadEngineParameters extends EngineParameters {
+
+	public DualRomReadEngineParameters(String [] args) {
+		super(args);
+	}
+
+	// declare param names
+	// private static final String s_numPipes 			= "numPipes";
+	// private static final String s_numMaxColumns 	= "numMaxColumns";
+	private static final String s_numPorts = "numPorts";
+	// declare params
+	@Override
+	protected void declarations() {
+	//	declareParam(s_numPipes,		DataType.INT, 	  8);
+	//	declareParam(s_numMaxColumns,	DataType.INT,  8192);
+		declareParam(s_numPorts, 		DataType.INT, 	  2);
+	}
+
+	//public int getTreeWidth()		{ return getParam(s_treeWidth); }
+	//public int getStreamFrequency()	{ return getParam(s_streamFrequency); }
+	//public int getNumPipes()		{ return getParam(s_numPipes); }
+	//public int getNumMaxColumns()	{ return getParam(s_numMaxColumns); }
+	public int getNumPorts() 		{ return getParam(s_numPorts); }
+	
+
+	@Override
+	public String getBuildName() {
+		return 
+			String.format("%s_%s_%s%03d", 
+				getMaxFileName(),
+				getTarget(),
+				"NumPorts", getNumPorts());
+	}
+}

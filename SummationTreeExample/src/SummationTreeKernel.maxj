@@ -1,0 +1,88 @@
+
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelConfiguration;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+class SummationTreeKernel extends Kernel {
+
+    final DFEType dataType = dfeFloat(8, 24);
+    //final int loopLength = 15;
+
+    SummationTreeKernel(KernelParameters parameters, int X, int treeWidth, int loopLength) {
+        super(parameters);
+        // this vector will be summed up by using summation tree
+        DFEVectorType vectorType = new DFEVectorType(dataType, treeWidth);
+        
+        int countMax = X/treeWidth;
+        CounterChain chain = control.count.makeCounterChain();
+        DFEVar x = chain.addCounter(countMax, 1);
+        DFEVar loopCounter = chain.addCounter(loopLength, 1);
+
+        DFEVector<DFEVar> inputVector = io.input("input", vectorType, loopCounter === (loopLength-1));
+        // wrap the summationTree without pipelining
+        
+        DFEVar carriedSum = dataType.newInstance(this);
+        DFEVar sum = x === 0 ? 0.0 : carriedSum;
+        DFEVar newSum = summationTree(inputVector, 0, treeWidth-1) + sum;
+        carriedSum <== stream.offset(newSum, -loopLength);
+        
+        io.output("output", newSum, dataType, x === (countMax-1) & loopCounter === (loopLength-1));
+    }
+
+    DFEVar summationTree(DFEVector<DFEVar> s, int l, int r) {
+        if (l == r) 
+            return s[l];
+        int m = l + (r-l)/2;
+        DFEVar newSumL = summationTree(s, l  , m);
+        DFEVar newSumR = summationTree(s, m+1, r);
+        DFEVar newSum  = newSumL + newSumR;
+        return newSum;
+    }
+
+    //SummationTreeKernel(KernelParameters parameters, int X) {
+    //    super(parameters);
+
+    //    CounterChain chain = control.count.makeCounterChain();
+    //    DFEVar x = chain.addCounter(X, 1);
+
+    //    DFEVar input = io.input("input", dataType);
+    //    DFEVar carriedSum = dataType.newInstance(this);
+    //    DFEVar sum = x === 0 ? 0.0 : carriedSum;
+    //    
+    //    optimization.pushPipeliningFactor(0);
+    //    DFEVar newSum = sum + input;
+    //    optimization.popPipeliningFactor();
+    //    carriedSum <== stream.offset(newSum, -1);
+
+    //    io.output("output", newSum, dataType, x === (X-1));
+    //}
+
+    // OffsetExpr loopLength = stream.makeOffsetAutoLoop("loopLength");        
+    // DFEVar loopLengthVal = loopLength.getDFEVar(this, dfeUInt(8));
+    // 
+    // CounterChain chain = control.count.makeCounterChain();
+    // DFEVar x = chain.addCounter(X, 1);
+    // DFEVar loopCounter = chain.addCounter(loopLengthVal, 1);
+
+    // DFEVar input = io.input("input", dataType, loopCounter === (loopLengthVal-1));
+    // DFEVar carriedSum = dataType.newInstance(this);
+    // DFEVar sum = x === 0 ? 0.0 : carriedSum;
+    // DFEVar newSum = sum + input;
+    // carriedSum <== stream.offset(newSum, -loopLength);
+
+    // io.output("output", newSum, dataType, x === (X-1) & loopCounter === (loopLengthVal-1));
+
+    // void summationTree(DFEVar source, int left, int right, int loopLength) {
+    //     if (left == )
+    // }
+}
+

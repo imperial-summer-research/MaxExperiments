@@ -1,0 +1,37 @@
+
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+
+
+class MaxCompilerRTUsageKernel extends Kernel {
+
+    final DFEType dataType = dfeFloat(8, 24);
+
+    MaxCompilerRTUsageKernel(KernelParameters parameters, int X) {
+        super(parameters);
+
+        // -- cyclic loop length
+        OffsetExpr loopLength = stream.makeOffsetAutoLoop("loopLength");        
+        DFEVar loopLengthVal = loopLength.getDFEVar(this, dfeUInt(8));
+        
+        CounterChain chain = control.count.makeCounterChain();
+        DFEVar x = chain.addCounter(X, 1);
+        DFEVar loopCounter = chain.addCounter(loopLengthVal, 1);
+
+        DFEVar input = io.input("input", dataType);
+        DFEVar carriedSum = dataType.newInstance(this);
+        DFEVar sum = x === 0 ? 0.0 : carriedSum;
+        DFEVar newSum = sum + input;
+        carriedSum <== stream.offset(newSum, -loopLength);
+
+        io.output("output", newSum, dataType, x === (X-1) & loopCounter === (loopLengthVal-1));
+    }
+}
+
