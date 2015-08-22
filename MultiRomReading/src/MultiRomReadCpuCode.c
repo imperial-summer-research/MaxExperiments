@@ -26,17 +26,19 @@ void run(int size, int rom_size, index_t *index, value_t *value, value_rom_t *ro
 	actions.outstream_value = value;
 
 	value_rom_t **roms = (value_rom_t **) &(actions.inmem_MultiRomReadKernel_ROM0000);
-  for (int i = 0; i < num_pipes; i++) {
-      roms[i] = (value_rom_t *) malloc(sizeof(value_rom_t) * rom_size);
-      memcpy(roms[i], rom, sizeof(value_rom_t) * rom_size);
-  }
+  	for (int i = 0; i < num_pipes; i++) {
+  	    roms[i] = (value_rom_t *) malloc(sizeof(value_rom_t) * rom_size);
+  	    memcpy(roms[i], rom, sizeof(value_rom_t) * rom_size);
+  	}
 	max_file_t *mf =  MultiRomRead_init();
 	max_engine_t *me = max_load(mf, "*");
 
 	printf("Running DFE ...\n");
+	// heating
+	MultiRomRead_run(me, &actions);
 
 	struct timeval t0, t1;
-  gettimeofday(&t0, 0);
+  	gettimeofday(&t0, 0);
 	MultiRomRead_run(me, &actions);
 	gettimeofday(&t1, 0);
 
