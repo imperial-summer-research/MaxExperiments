@@ -25,7 +25,7 @@
 WHEREISROOT=../..
 
 # Assuming Kernel and Manager class names follow the pattern below:
-PRJ=MultiRomRead
+PRJ=SparseBCSR
 KERNEL=$(PRJ)Kernel
 MANAGER=$(PRJ)Manager
 
@@ -34,10 +34,13 @@ MANAGER=$(PRJ)Manager
 #BUILD_PARAMS:=treeWidth=$(TREE_WIDTH) streamFrequency=$(STREAM_FREQUENCY)
 #BUILD_NAME_OPTION:=_treeWidth$(TREE_WIDTH)_streamFrequency$(STREAM_FREQUENCY)
 
-NUM_PORTS?=002
-NUM_PIPES?=002
-BUILD_PARAMS:=numPorts=$(NUM_PORTS) numPipes=$(NUM_PIPES)
-BUILD_NAME_OPTION:=_NumPorts$(NUM_PORTS)_NumPipes$(NUM_PIPES)
+R?=004
+C?=004
+ROM?=8192
+FREQ?=100
+
+BUILD_PARAMS:=freq=$(FREQ) R=$(R) C=$(C) ROM=$(ROM)
+BUILD_NAME_OPTION:=_R_$(R)_C_$(C)_ROM_$(ROM)_freq_$(FREQ)MHz
 
 # Using known hardware settings
 include $(WHEREISROOT)/Makefile.Max3.hardware
