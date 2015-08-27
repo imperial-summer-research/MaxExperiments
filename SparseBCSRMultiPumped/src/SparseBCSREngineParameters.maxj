@@ -24,7 +24,7 @@ public class SparseBCSREngineParameters extends EngineParameters {
 
 	public int getR() 		{ return getParam(s_R); }
 	public int getC() 		{ return getParam(s_C); }
-	public int getDepth() { return getParam(s_depth); }
+	public int getDepth() 	{ return getParam(s_depth); }
 	public int getFreq() 	{ return getParam(s_freq); }
 
 	@Override

@@ -4,6 +4,7 @@ import com.maxeler.maxcompiler.v2.build.EngineParameters;
 import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
 import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
 import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.custom.ManagerClock;
 import com.maxeler.maxcompiler.v2.managers.BuildConfig;
 import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
 import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
@@ -13,7 +14,8 @@ import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
 
 class SparseBCSRManager extends CustomManager {
 
-    private static final String s_gatherKernelName = "SparseBCSRGatherKernel";
+    private static final String s_gatherKernelName   = "SparseBCSRGatherKernel";
+    private static final String s_multiplyKernelName = "SparseBCSRMultiplyKernel";
     private static final int loopLength = 15;
 
     SparseBCSRManager(SparseBCSREngineParameters params) {
@@ -29,24 +31,35 @@ class SparseBCSRManager extends CustomManager {
                                     params.getDepth())
             );
 
-        config.setDefaultStreamClockFrequency(params.getFreq());
+        KernelBlock k2 = addKernel(
+            new SparseBCSRMultiplyKernel(makeKernelParameters(s_multiplyKernelName),
+                                    R,
+                                    C)
+            );
+
+        ManagerClock clk1 = generateStreamClock("1xclock", params.getFreq());
+        ManagerClock clk2 = generateStreamClock("2xclock", params.getFreq() * 2);
+        k1.setClock(clk1);
+        k2.setClock(clk2);
         // --- DFELinks --- 
         DFELink indexStream = addStreamFromCPU("index");
         DFELink valueStream = addStreamFromCPU("value");
 
-        DFELink inputVectorStreams[] = new DFELink [R];
-        DFELink valueVectorStreams[] = new DFELink [R];
-        for (int i = 0; i < R; i++) {
-            inputVectorStreams[i] = addStreamToCPU(String.format("inputVector%04d", i));
-            valueVectorStreams[i] = addStreamToCPU(String.format("valueVector%04d", i));
-        }
-
+        DFELink productStreams[] = new DFELink [R];
+        for (int i = 0; i < R; i++) 
+            productStreams[i] = addStreamToCPU(String.format("product%04d", i));
+            
         //// --- Connect DFELinks to kernel block ---
         k1.getInput("index") <== indexStream;
         k1.getInput("value") <== valueStream;
         for (int i = 0; i < R; i++) {
-            inputVectorStreams[i] <== k1.getOutput(String.format("inputVector%04d", i));
-            valueVectorStreams[i] <== k1.getOutput(String.format("valueVector%04d", i));
+            k2.getInput(String.format("inputVector%04d", i)) 
+                <== k1.getOutput(String.format("inputVector%04d", i));
+            k2.getInput(String.format("valueVector%04d", i)) 
+                <== k1.getOutput(String.format("valueVector%04d", i));
+            
+            productStreams[i] 
+                <== k2.getOutput(String.format("product%04d", i));
         }
 
         createSLiCinterface(modeDefault(R, C));
@@ -60,13 +73,13 @@ class SparseBCSRManager extends CustomManager {
         InterfaceParam length = ei.addParam("length", CPUTypes.INT);
         InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
 
-        ei.setTicks(s_gatherKernelName, length / (R * C));
+        ei.setTicks(s_gatherKernelName,   length / (R * C));
+        ei.setTicks(s_multiplyKernelName, length / (R * C) * 2);
         ei.setStream("index",   CPUTypes.UINT32,  lengthInBytes);
         ei.setStream("value",   CPUTypes.FLOAT,   lengthInBytes);
 
         for (int i = 0; i < R; i++) {
-            ei.setStream(String.format("inputVector%04d", i), CPUTypes.FLOAT, lengthInBytes/R);
-            ei.setStream(String.format("valueVector%04d", i), CPUTypes.FLOAT, lengthInBytes/R);
+            ei.setStream(String.format("product%04d", i), CPUTypes.FLOAT, lengthInBytes/R);
         }
 
         return ei;

@@ -45,6 +45,39 @@ class SparseBCSRGatherKernel extends Kernel {
             io.output(String.format("valueVector%04d", i), valueVector, mColT);
         }
     }
+}
+
+class SparseBCSRMultiplyKernel extends Kernel {
+    private static DFEType valueT = dfeFloat(8, 24);
+    private static DFEType indexT = dfeUInt(32);
+
+    SparseBCSRMultiplyKernel(KernelParameters parameters, int R, int C) {
+        super(parameters);
+
+        DFEVar counter = control.count.simpleCounter(1);
+
+        DFEVectorType<DFEVar> mColT   = new DFEVectorType<DFEVar>(valueT, C);
+        DFEVectorType<DFEVar> mRowT   = new DFEVectorType<DFEVar>(valueT, R);
+
+        
+        for (int i = 0; i < R; i += 2) {
+            DFEVector<DFEVar> i0 = io.input(String.format("inputVector%04d", i  ), mColT, counter === 0);
+            DFEVector<DFEVar> v0 = io.input(String.format("valueVector%04d", i  ), mColT, counter === 0);
+            DFEVector<DFEVar> i1 = io.input(String.format("inputVector%04d", i+1), mColT, counter === 1);
+            DFEVector<DFEVar> v1 = io.input(String.format("valueVector%04d", i+1), mColT, counter === 1);
+
+            DFEVector<DFEVar> p = mColT.newInstance(this);
+            for (int j = 0; j < C; j++) {
+                DFEVar x = (counter === 0) ? i0[j] : i1[j];
+                DFEVar y = (counter === 0) ? v0[j] : v1[j];
+                DFEVar ans = x * y;
+                p[j] <== ans;
+            }
+            io.output(String.format("product%04d", i  ), p, mColT, counter === 0);
+            io.output(String.format("product%04d", i+1), p, mColT, counter === 1);
+        }
+    }
+}
 
 
     //SparseBCSRKernel(KernelParameters parameters, int R, int C, int depth, int loopLength) {
@@ -94,5 +127,4 @@ class SparseBCSRGatherKernel extends Kernel {
     //        summationTree(s, l  , m) + 
     //        summationTree(s, m+1, r);
     //}
-}
 
