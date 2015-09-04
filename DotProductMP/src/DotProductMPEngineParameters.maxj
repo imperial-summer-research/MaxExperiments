@@ -1,0 +1,34 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class DotProductMPEngineParameters extends EngineParameters {
+
+	public DotProductMPEngineParameters(String [] args) {
+		super(args);
+	}
+
+	// declare param names
+	private static final String s_P 		= "P";
+	private static final String s_C 		= "C";
+	private static final String s_freq 	= "freq";	
+
+	// declare params
+	@Override
+	protected void declarations() {
+		declareParam(s_P, 		DataType.INT, 	 4);
+		declareParam(s_C, 		DataType.INT, 	 2);
+		declareParam(s_freq, 	DataType.INT,  100);
+	}
+
+	public int getP() 		{ return getParam(s_P); }
+	public int getC() 		{ return getParam(s_C); }
+	public int getFreq() 	{ return getParam(s_freq); }
+
+	@Override
+	public String getBuildName() {
+		return 
+			String.format("%s_%s_%s_P_%03d_C_%03d_freq_%03dMHz", 
+				getMaxFileName(), getDFEModel(), getTarget(),
+				getP(), getC(), getFreq());
+	}
+}

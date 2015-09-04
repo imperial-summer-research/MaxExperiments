@@ -1,0 +1,40 @@
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelConfiguration;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count.Counter;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+class DotProductMPKernel extends Kernel {
+
+    private static DFEType dataType = dfeFloat(8, 24);
+    
+    DotProductMPKernel(KernelParameters parameters, int P, int C) {
+        super(parameters);
+
+        if (C > 1) {
+            CounterChain chain = control.count.makeCounterChain();
+            chain.addCounter(C, 1);
+        }
+
+        DFEVectorType<DFEVar> vecType = new DFEVectorType<DFEVar>(dataType, P/C);
+
+        DFEVector<DFEVar> xs = io.input("x", vecType);
+        DFEVector<DFEVar> ys = io.input("y", vecType);
+        DFEVector<DFEVar> rs = vecType.newInstance(this);
+
+        for (int i = 0; i < P/C; i ++) 
+            rs[i] <== xs[i] * xs[i] * ys[i] * ys[i];
+
+        io.output("r", rs, vecType);
+    }
+}
+

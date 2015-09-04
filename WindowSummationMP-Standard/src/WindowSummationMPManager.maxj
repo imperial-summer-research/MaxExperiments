@@ -1,0 +1,70 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.ManagerClock;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+class WindowSummationMPManager extends CustomManager {
+
+    private static final String s_gatherKernelName = "WindowSummationMPGatherKernel";
+    private static final String s_sumKernelName = "WindowSummationMPSumKernel";
+
+    WindowSummationMPManager(WindowSummationMPEngineParameters params) {
+        super(params);
+
+        int W       = params.getW();
+        int depth   = params.getDepth();
+
+        KernelBlock k0 = addKernel(new WindowSummationMPGatherKernel(makeKernelParameters(s_gatherKernelName), W, depth));
+        KernelBlock k1 = addKernel(new WindowSummationMPSumKernel(makeKernelParameters(s_sumKernelName), W));
+
+        config.setDefaultStreamClockFrequency(params.getFreq());
+
+        //ManagerClock clkMP = generateStreamClock("clkMP", C * params.getFreq());
+        //k.setClock(clkMP);
+
+        // --- DFELinks --- 
+        DFELink i = addStreamFromCPU("index");
+        DFELink r = addStreamToCPU("result");
+    
+        k0.getInput("index") <== i;
+        k1.getInput("value") <== k0.getOutput("value");
+        r                    <== k1.getOutput("result");
+
+        createSLiCinterface(modeDefault(W));
+
+        //configBuild(params);
+    }
+
+    private EngineInterface modeDefault(int W) {
+        EngineInterface ei = new EngineInterface();
+
+        InterfaceParam length = ei.addParam("length", CPUTypes.INT);
+        InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
+
+        ei.setTicks(s_gatherKernelName, length / W);
+        ei.setTicks(s_sumKernelName, length / W);
+        ei.setStream("index",  CPUTypes.UINT32, lengthInBytes);
+        ei.setStream("result", CPUTypes.FLOAT,  lengthInBytes/W);
+
+        return ei;
+    }
+
+    public static void main(String[] args) {
+        WindowSummationMPEngineParameters params = new WindowSummationMPEngineParameters(args);
+        WindowSummationMPManager manager = new WindowSummationMPManager(params);
+        
+        manager.addMaxFileConstant("W", params.getW());
+        manager.addMaxFileConstant("depth", params.getDepth());
+        manager.addMaxFileConstant("freq", params.getFreq());
+        manager.build();
+    }
+}
+

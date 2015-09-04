@@ -1,0 +1,38 @@
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelConfiguration;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count.Counter;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+// Gather Kernel: Used to read data from ROM, and send to the next KernelBlock
+// Will be multi-pumped.
+class CSlowingMPKernel extends Kernel {
+
+    private static DFEType dataType = dfeFloat(8, 24);
+
+    CSlowingMPKernel(KernelParameters parameters, int X, int C) {
+        super(parameters);
+
+        // set counter
+        CounterChain chain = control.count.makeCounterChain();
+        DFEVar x = chain.addCounter(X, 1);
+        chain.addCounter(C, 1);
+
+        DFEVar input = io.input("input", dataType);
+        DFEVar carriedSum = dataType.newInstance(this);
+        DFEVar sum = x === 0 ? 0.0 : carriedSum;
+        DFEVar newSum = input + sum;
+        carriedSum <== stream.offset(newSum, -C);
+
+        io.output("output", newSum, dataType);
+    }
+}

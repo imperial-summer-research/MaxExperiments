@@ -1,0 +1,9 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class LMemExampleEngineParameters extends EngineParameters {
+
+	public LMemExampleEngineParameters(String [] args) {
+		super(args);
+	}
+}

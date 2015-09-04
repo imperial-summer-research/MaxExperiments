@@ -1,0 +1,34 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+
+public class CSlowingMPEngineParameters extends EngineParameters {
+
+	public CSlowingMPEngineParameters(String [] args) {
+		super(args);
+	}
+
+	//// declare param names
+	//private static final String s_W 		= "W";
+	//private static final String s_depth = "depth";
+	//private static final String s_freq 	= "freq";	
+//
+	//// declare params
+	//@Override
+	//protected void declarations() {
+	//	declareParam(s_W, 		DataType.INT, 	 4);
+	//	declareParam(s_depth,	DataType.INT, 8192);
+	//	declareParam(s_freq, 	DataType.INT,  100);
+	//}
+//
+	//public int getW() 		{ return getParam(s_W); }
+	//public int getDepth() { return getParam(s_depth); }
+	//public int getFreq() 	{ return getParam(s_freq); }
+//
+	//@Override
+	//public String getBuildName() {
+	//	return 
+	//		String.format("%s_%s_%s_W_%03d_D_%03d_freq_%03dMHz", 
+	//			getMaxFileName(), getDFEModel(), getTarget(),
+	//			getW(), getDepth(), getFreq());
+	//}
+}

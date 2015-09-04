@@ -79,6 +79,44 @@ class SparseBCSRMultiplyKernel extends Kernel {
     }
 }
 
+class SparseBCSRSummationKernel extends Kernel {
+    private static DFEType valueT = dfeFloat(8, 24);
+    private static DFEType indexT = dfeUInt(32);
+
+    SparseBCSRSummationKernel(KernelParameters parameters, int R, int C, int loopLength) {
+        super(parameters);
+
+        CounterChain chain  = control.count.makeCounterChain();
+        chain.addCounter(loopLength, 1);
+
+        DFEVectorType<DFEVar> mColT   = new DFEVectorType<DFEVar>(valueT, C);
+        DFEVectorType<DFEVar> mRowT   = new DFEVectorType<DFEVar>(valueT, R);
+
+        DFEVar start                  = io.input("start", indexT);
+        DFEVector<DFEVar> carry       = mRowT.newInstance(this);
+        DFEVector<DFEVar> sum         = mRowT.newInstance(this);
+        for (int i = 0; i < R; i++) {
+            DFEVector<DFEVar> product = io.input(String.format("product%04d", i), mColT);
+
+            DFEVar tmpSum = start === 1 ? 0.0 : carry[i];
+            sum[i]   <== summationTree(product, 0, C-1) + tmpSum;
+            carry[i] <== stream.offset(sum[i], -loopLength);
+        }
+
+        io.output("result", sum, mRowT);
+    }
+
+    DFEVar summationTree(DFEVector<DFEVar> s, int l, int r) {
+        if (l == r) 
+            return s[l];
+        int m = l + (r-l)/2;
+        return 
+            summationTree(s, l  , m) + 
+            summationTree(s, m+1, r);
+    }
+
+}
+
 
     //SparseBCSRKernel(KernelParameters parameters, int R, int C, int depth, int loopLength) {
     //    super(parameters);

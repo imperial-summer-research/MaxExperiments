@@ -1,0 +1,95 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.ManagerClock;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface.Direction;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+import com.maxeler.maxcompiler.v2.managers.custom.stdlib.MemoryControlGroup;
+
+class LMemExampleManager extends CustomManager {
+
+    private static final String s_kernelName = "LMemExampleKernel";
+
+    LMemExampleManager(LMemExampleEngineParameters params) {
+        super(params);
+
+        KernelBlock k = addKernel(new LMemExampleKernel(makeKernelParameters(s_kernelName)));
+
+
+        DFELink CPU2LMem = addStreamToOnCardMemory("CPU2LMem",  MemoryControlGroup.MemoryAccessPattern.LINEAR_1D);
+        DFELink LMem2CPU = addStreamFromOnCardMemory("LMem2CPU",MemoryControlGroup.MemoryAccessPattern.LINEAR_1D);
+        DFELink fromCPU  = addStreamFromCPU("fromCPU");
+        DFELink toCPU    = addStreamToCPU("toCPU");
+        
+        CPU2LMem <== fromCPU;
+        toCPU <== LMem2CPU;
+
+        DFELink inA = addStreamFromOnCardMemory("inA", MemoryControlGroup.MemoryAccessPattern.LINEAR_1D);
+        DFELink inB = addStreamFromOnCardMemory("inB", MemoryControlGroup.MemoryAccessPattern.LINEAR_1D);
+        k.getInput("inA") <== inA;
+        k.getInput("inB") <== inB;
+
+        DFELink out = addStreamToOnCardMemory("oData", MemoryControlGroup.MemoryAccessPattern.LINEAR_1D);
+        out <== k.getOutput("oData");
+
+        createSLiCinterface(interfaceWrite("writeLMem"));
+        createSLiCinterface(interfaceRead("readLMem"));
+        createSLiCinterface(interfaceDefault());
+
+    }
+
+    // calculation
+    private static EngineInterface interfaceDefault() {
+
+        EngineInterface ei = new EngineInterface();
+        InterfaceParam N = ei.addParam("N", CPUTypes.INT);
+        ei.setTicks(s_kernelName, N);
+        InterfaceParam sizeInBytes = N * CPUTypes.UINT32.sizeInBytes();
+
+        InterfaceParam zero = ei.addConstant(0l);
+        ei.setLMemLinear("inA", zero, sizeInBytes);
+        ei.setLMemLinear("inB", sizeInBytes, sizeInBytes);
+        ei.setLMemLinear("oData", 2 * sizeInBytes, sizeInBytes);
+        ei.ignoreAll(Direction.IN_OUT);
+        return ei;
+    }
+
+    private static EngineInterface interfaceWrite(String name) {
+        EngineInterface ei = new EngineInterface(name);
+        InterfaceParam size = ei.addParam("size", CPUTypes.INT);
+        InterfaceParam start = ei.addParam("start", CPUTypes.INT);
+        InterfaceParam sizeInBytes = size * CPUTypes.UINT32.sizeInBytes();
+
+        ei.setStream("fromCPU", CPUTypes.UINT32, sizeInBytes);
+        ei.setLMemLinear("CPU2LMem", start * CPUTypes.UINT32.sizeInBytes(), sizeInBytes);
+        ei.ignoreAll(Direction.IN_OUT);
+        return ei;
+    }
+
+    private static EngineInterface interfaceRead(String name) {
+        EngineInterface ei = new EngineInterface(name);
+        InterfaceParam size = ei.addParam("size", CPUTypes.INT);
+        InterfaceParam start = ei.addParam("start", CPUTypes.INT);
+        InterfaceParam sizeInBytes = size * CPUTypes.UINT32.sizeInBytes();
+
+        ei.setLMemLinear("LMem2CPU", start * CPUTypes.UINT32.sizeInBytes(), sizeInBytes);
+        ei.setStream("toCPU", CPUTypes.UINT32, sizeInBytes);
+        ei.ignoreAll(Direction.IN_OUT);
+        return ei;
+    }
+
+    public static void main(String[] args) {
+        LMemExampleEngineParameters params = new LMemExampleEngineParameters(args);
+        LMemExampleManager manager = new LMemExampleManager(params);
+        
+        manager.build();
+    }
+}
+

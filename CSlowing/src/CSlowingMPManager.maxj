@@ -1,0 +1,63 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.ManagerClock;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+class CSlowingMPManager extends CustomManager {
+
+    private static final String s_KernelName = "CSlowingMPKernel";
+
+    private static final int C = 10;
+    private static final int X = 8192;
+
+    CSlowingMPManager(CSlowingMPEngineParameters params) {
+        super(params);
+
+        KernelBlock k = addKernel(new CSlowingMPKernel(makeKernelParameters(s_KernelName), X, C));
+
+        //ManagerClock clkMP = generateStreamClock("clkMP", C * params.getFreq());
+        //k.setClock(clkMP);
+
+        // --- DFELinks --- 
+        DFELink i = addStreamFromCPU("input");
+        DFELink o = addStreamToCPU("output");
+    
+        k.getInput("input") <== i;
+        o                   <== k.getOutput("output");
+
+        createSLiCinterface(modeDefault());
+
+        //configBuild(params);
+    }
+
+    private EngineInterface modeDefault() {
+        EngineInterface ei = new EngineInterface();
+
+        InterfaceParam length = ei.addParam("length", CPUTypes.INT);
+        InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
+
+        ei.setTicks(s_KernelName, length);
+        ei.setStream("input",  CPUTypes.FLOAT, lengthInBytes);
+        ei.setStream("output", CPUTypes.FLOAT, lengthInBytes);
+
+        return ei;
+    }
+
+    public static void main(String[] args) {
+        CSlowingMPEngineParameters params = new CSlowingMPEngineParameters(args);
+        CSlowingMPManager manager = new CSlowingMPManager(params);
+        
+        manager.addMaxFileConstant("C", C);
+        manager.addMaxFileConstant("X", X);
+        manager.build();
+    }
+}
+

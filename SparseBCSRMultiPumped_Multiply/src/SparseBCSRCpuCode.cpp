@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     r = SparseBCSR_R;
     c = SparseBCSR_C;
     depth = SparseBCSR_depth;
-    n = 8;
+    n = 16;
     m = n * 2;
     nnz = m * n;
     
@@ -58,11 +58,9 @@ int main(int argc, char *argv[]) {
     actions.instream_index = index;
     actions.instream_value = value;
     actions.inmem_SparseBCSRGatherKernel_ROM = rom;
-    value_t **input_vector = &actions.outstream_inputVector0000;
-    value_t **value_vector = &actions.outstream_valueVector0000;
+    value_t **product = &actions.outstream_product0000;
     for (int i = 0; i < r; i++) {
-        input_vector[i] = (value_t *) malloc(sizeof(value_t) * nnz / r);
-        value_vector[i] = (value_t *) malloc(sizeof(value_t) * nnz / r);
+        product[i] = (value_t *) malloc(sizeof(value_t) * nnz / r);
     }
 
     printf("Running DFE ...\n");
@@ -71,15 +69,17 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < r; i++) {
         printf("For pipe %04d: \n", i);
         for (int j = 0; j < nnz / r; j++) {
-            value_t read    = input_vector[i][j];
-            value_t expect  = rom[index[j * r + i]];
-            printf("\t[%4d] %.6f %.6f", j, read, expect);
-            if (abs(read-expect)/expect > 1e-5) 
-                printf("\tERROR\n");
-            else
-                printf("\tOK\n");
+            value_t read    = product[i][j];
+            value_t expect  = rom[index[j * r + i]] * value[j * r + i];
+            
+            if (abs(read-expect)/expect > 1e-5) {
+                printf("\t[%4d] %.6f %.6f\tERROR\n", j, read, expect);
+                exit(1);
+            }
         }
+        printf("OK\n");
     }
+
     SparseBCSR_free();
     return 0;
 }

@@ -14,8 +14,10 @@ import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
 
 class SparseBCSRManager extends CustomManager {
 
-    private static final String s_gatherKernelName   = "SparseBCSRGatherKernel";
-    private static final String s_multiplyKernelName = "SparseBCSRMultiplyKernel";
+    private static final String s_gatherKernelName    = "SparseBCSRGatherKernel";
+    private static final String s_multiplyKernelName  = "SparseBCSRMultiplyKernel";
+    private static final String s_summationKernelName = "SparseBCSRSummationKernel";
+    
     private static final int loopLength = 15;
 
     SparseBCSRManager(SparseBCSREngineParameters params) {
@@ -24,43 +26,31 @@ class SparseBCSRManager extends CustomManager {
         int R = params.getR();
         int C = params.getC();
     
-        KernelBlock k1 = addKernel(
-            new SparseBCSRGatherKernel(makeKernelParameters(s_gatherKernelName), 
-                                    R, 
-                                    C,
-                                    params.getDepth())
-            );
+        KernelBlock k1 = addKernel(new SparseBCSRGatherKernel(makeKernelParameters(s_gatherKernelName), R, C, params.getDepth()));
+        KernelBlock k2 = addKernel(new SparseBCSRMultiplyKernel(makeKernelParameters(s_multiplyKernelName), R, C));
+        KernelBlock k3 = addKernel(new SparseBCSRSummationKernel(makeKernelParameters(s_summationKernelName), R, C, loopLength));
 
-        KernelBlock k2 = addKernel(
-            new SparseBCSRMultiplyKernel(makeKernelParameters(s_multiplyKernelName),
-                                    R,
-                                    C)
-            );
-
-        ManagerClock clk1 = generateStreamClock("1xclock", params.getFreq());
-        ManagerClock clk2 = generateStreamClock("2xclock", params.getFreq() * 2);
+        ManagerClock clk1 = generateStreamClock("clock1x", params.getFreq());
+        ManagerClock clk2 = generateStreamClock("clock2x", params.getFreq() * 2);
         k1.setClock(clk1);
         k2.setClock(clk2);
+        k3.setClock(clk1);
         // --- DFELinks --- 
         DFELink indexStream = addStreamFromCPU("index");
         DFELink valueStream = addStreamFromCPU("value");
+        DFELink startStream = addStreamFromCPU("start");
+        DFELink resultStream= addStreamToCPU("result");
 
-        DFELink productStreams[] = new DFELink [R];
-        for (int i = 0; i < R; i++) 
-            productStreams[i] = addStreamToCPU(String.format("product%04d", i));
-            
         //// --- Connect DFELinks to kernel block ---
         k1.getInput("index") <== indexStream;
         k1.getInput("value") <== valueStream;
+        k3.getInput("start") <== startStream;
         for (int i = 0; i < R; i++) {
-            k2.getInput(String.format("inputVector%04d", i)) 
-                <== k1.getOutput(String.format("inputVector%04d", i));
-            k2.getInput(String.format("valueVector%04d", i)) 
-                <== k1.getOutput(String.format("valueVector%04d", i));
-            
-            productStreams[i] 
-                <== k2.getOutput(String.format("product%04d", i));
+            k2.getInput(String.format("inputVector%04d", i)) <== k1.getOutput(String.format("inputVector%04d", i));
+            k2.getInput(String.format("valueVector%04d", i)) <== k1.getOutput(String.format("valueVector%04d", i));
+            k3.getInput(String.format("product%04d",     i)) <== k2.getOutput(String.format("product%04d",     i));
         }
+        resultStream <== k3.getOutput("result");
 
         createSLiCinterface(modeDefault(R, C));
 
@@ -75,13 +65,11 @@ class SparseBCSRManager extends CustomManager {
 
         ei.setTicks(s_gatherKernelName,   length / (R * C));
         ei.setTicks(s_multiplyKernelName, length / (R * C) * 2);
+        ei.setTicks(s_summationKernelName,length / (R * C));
         ei.setStream("index",   CPUTypes.UINT32,  lengthInBytes);
         ei.setStream("value",   CPUTypes.FLOAT,   lengthInBytes);
-
-        for (int i = 0; i < R; i++) {
-            ei.setStream(String.format("product%04d", i), CPUTypes.FLOAT, lengthInBytes/R);
-        }
-
+        ei.setStream("start",   CPUTypes.UINT32,  lengthInBytes / (R * C));
+        ei.setStream("result",  CPUTypes.FLOAT,   lengthInBytes / C);
         return ei;
     }
 

@@ -1,0 +1,69 @@
+
+import com.maxeler.maxcompiler.v2.build.EngineParameters;
+import com.maxeler.maxcompiler.v2.managers.custom.ManagerClock;
+import com.maxeler.maxcompiler.v2.managers.custom.CustomManager;
+import com.maxeler.maxcompiler.v2.managers.custom.DFELink;
+import com.maxeler.maxcompiler.v2.managers.custom.blocks.KernelBlock;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.Effort;
+import com.maxeler.maxcompiler.v2.managers.BuildConfig.OptimizationTechnique;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.CPUTypes;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.EngineInterface;
+import com.maxeler.maxcompiler.v2.managers.engine_interfaces.InterfaceParam;
+
+class DotProductMPManager extends CustomManager {
+
+    private static final String s_KernelName = "DotProductMPKernel";
+
+    DotProductMPManager(DotProductMPEngineParameters params) {
+        super(params);
+
+        int P = params.getP();
+        int C = params.getC();
+
+        KernelBlock k = addKernel(new DotProductMPKernel(makeKernelParameters(s_KernelName), P, C));
+
+        config.setDefaultStreamClockFrequency(params.getFreq());
+
+        ManagerClock clkMP = generateStreamClock("clkMP", C * params.getFreq());
+        k.setClock(clkMP);
+
+        // --- DFELinks --- 
+        DFELink x = addStreamFromCPU("x");
+        DFELink y = addStreamFromCPU("y");
+        DFELink r = addStreamToCPU("r");
+    
+        k.getInput("x") <== x;
+        k.getInput("y") <== y;
+        r               <== k.getOutput("r");
+
+        createSLiCinterface(modeDefault(P, C));
+
+        //configBuild(params);
+    }
+
+    private EngineInterface modeDefault(int P, int C) {
+        EngineInterface ei = new EngineInterface();
+
+        InterfaceParam length = ei.addParam("length", CPUTypes.INT);
+        InterfaceParam lengthInBytes = length * CPUTypes.FLOAT.sizeInBytes();
+
+        ei.setTicks(s_KernelName, length / P);
+        ei.setStream("x", CPUTypes.FLOAT, lengthInBytes);
+        ei.setStream("y", CPUTypes.FLOAT, lengthInBytes);
+        ei.setStream("r", CPUTypes.FLOAT, lengthInBytes);
+
+        return ei;
+    }
+
+    public static void main(String[] args) {
+        DotProductMPEngineParameters params = new DotProductMPEngineParameters(args);
+        DotProductMPManager manager = new DotProductMPManager(params);
+        
+        manager.addMaxFileConstant("P", params.getP());
+        manager.addMaxFileConstant("C", params.getC());
+        manager.addMaxFileConstant("freq", params.getFreq());
+        manager.build();
+    }
+}
+

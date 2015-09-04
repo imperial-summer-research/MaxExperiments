@@ -1,0 +1,62 @@
+
+import com.maxeler.maxcompiler.v0.utils.MathUtils;
+import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
+import com.maxeler.maxcompiler.v2.kernelcompiler.KernelConfiguration;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Count.Counter;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.Stream.OffsetExpr;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.memory.Memory;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVector;
+import com.maxeler.maxcompiler.v2.kernelcompiler.types.composite.DFEVectorType;
+
+// Gather Kernel: Used to read data from ROM, and send to the next KernelBlock
+// Will be multi-pumped.
+class WindowSummationMPGatherKernel extends Kernel {
+
+    private static DFEType dataType = dfeFloat(8, 24);
+    private static DFEType indexType = dfeUInt(32);
+
+    WindowSummationMPGatherKernel(KernelParameters parameters, int W, int depth) {
+        super(parameters);
+
+        DFEType addrType = dfeUInt(MathUtils.bitsToAddress(depth));
+
+        DFEVectorType<DFEVar> indexVecType = new DFEVectorType<DFEVar>(indexType, W);
+        DFEVectorType<DFEVar> valueVecType = new DFEVectorType<DFEVar>(dataType, W);
+
+        DFEVector<DFEVar> index = io.input("index", indexVecType);
+        DFEVector<DFEVar> value = valueVecType.newInstance(this);
+
+        Memory<DFEVar> ROM = mem.alloc(dataType, depth);
+        ROM.mapToCPU("ROM");
+        for (int i = 0; i < W; i++) 
+            value[i] <== ROM.read(index[i].cast(addrType));
+        
+        io.output("value", value, valueVecType);
+    }
+}
+
+class WindowSummationMPSumKernel extends Kernel {
+    
+    private static DFEType dataType = dfeFloat(8, 24);
+
+    WindowSummationMPSumKernel(KernelParameters params, int W) {
+        super(params);
+
+        DFEVectorType valueVecType = new DFEVectorType(dataType, W);
+        DFEVector<DFEVar> value = io.input("value", valueVecType);
+        DFEVar result = summationTree(value, 0, W-1);
+        io.output("result", result, dataType);
+    }
+
+    DFEVar summationTree(DFEVector<DFEVar> s, int l, int r) {
+        if (l == r)
+            return s[l];
+        int m = l + (r-l)/2;
+        return summationTree(s, l, m) + summationTree(s, m+1, r);
+    }
+}
